@@ -221,3 +221,123 @@ def test_end_to_end_pipeline():
     assert alert.flow_id == flow.flow_id
     assert alert.severity in ["CRITICAL", "HIGH", "MEDIUM"]
     assert alert.confidence >= 0.65
+
+# --- P1.7 Specificity & Cross-Trigger Regression Tests ---
+
+def test_udp_detector_requires_udp_protocol():
+    """DDoSDetector and MLDetector must reject UDP_AMPLIFICATION for non-UDP traffic."""
+    pipeline = FeaturePipeline()
+    ddos_detector = DDoSDetector()
+    ml_detector = MLDetector()
+
+    # Create high-rate TCP flow
+    pkt0 = PacketMetadata(timestamp=100.0, length=1420, src_ip="198.51.100.77", dst_ip="192.168.1.10", src_port=123, dst_port=55100, protocol="TCP")
+    flow = Flow(CanonicalFlowKey.from_packet(pkt0), pkt0)
+    for i in range(1, 30):
+        flow.add_packet(PacketMetadata(timestamp=100.0 + i*0.005, length=1420, src_ip="198.51.100.77", dst_ip="192.168.1.10", src_port=123, dst_port=55100, protocol="TCP"))
+
+    feats = pipeline.extract_features(flow)
+    res_ddos = ddos_detector.analyze_flow(feats)
+    res_ml = ml_detector.analyze_flow(feats)
+
+    assert res_ddos is None or res_ddos.threat_class != "UDP_AMPLIFICATION"
+    if res_ml is not None:
+        assert res_ml.threat_class != "UDP_AMPLIFICATION"
+
+def test_syn_detector_requires_tcp():
+    """DDoSDetector and MLDetector must reject SYN_FLOOD for non-TCP traffic."""
+    pipeline = FeaturePipeline()
+    ddos_detector = DDoSDetector()
+    ml_detector = MLDetector()
+
+    # Create high-rate UDP flow with fwd_syn feature spoofed
+    pkt0 = PacketMetadata(timestamp=100.0, length=64, src_ip="10.20.4.15", dst_ip="192.168.1.10", src_port=5000, dst_port=80, protocol="UDP")
+    flow = Flow(CanonicalFlowKey.from_packet(pkt0), pkt0)
+    for i in range(1, 100):
+        flow.add_packet(PacketMetadata(timestamp=100.0 + i*0.01, length=64, src_ip="10.20.4.15", dst_ip="192.168.1.10", src_port=5000, dst_port=80, protocol="UDP"))
+
+    feats = pipeline.extract_features(flow)
+    feats["fwd_syn"] = 100
+    feats["syn_ack_ratio"] = 0.0
+
+    res_ddos = ddos_detector.analyze_flow(feats)
+    res_ml = ml_detector.analyze_flow(feats)
+
+    assert res_ddos is None or res_ddos.threat_class != "SYN_FLOOD"
+    if res_ml is not None:
+        assert res_ml.threat_class != "SYN_FLOOD"
+
+def test_syn_flood_does_not_trigger_udp_amplification():
+    """SYN flood traffic must NEVER trigger UDP_AMPLIFICATION."""
+    pipeline = FeaturePipeline()
+    engine = RiskEngine()
+
+    pkt_syn = PacketMetadata(timestamp=100.0, length=64, src_ip="10.20.4.15", dst_ip="192.168.1.10", src_port=49152, dst_port=80, protocol="TCP", tcp_flags=0x02)
+    flow = Flow(CanonicalFlowKey.from_packet(pkt_syn), pkt_syn)
+    for i in range(1, 100):
+        flow.add_packet(PacketMetadata(timestamp=100.0 + i*0.01, length=64, src_ip="10.20.4.15", dst_ip="192.168.1.10", src_port=49152, dst_port=80, protocol="TCP", tcp_flags=0x02))
+
+    feats = pipeline.extract_features(flow)
+    for det in engine.detectors:
+        res = det.analyze_flow(feats)
+        if res and res.detected:
+            assert res.threat_class != "UDP_AMPLIFICATION", f"Detector {det.name} falsely fired UDP_AMPLIFICATION on SYN flood!"
+
+def test_port_scan_does_not_trigger_udp_amplification():
+    """Vertical port scan probe traffic must NEVER trigger UDP_AMPLIFICATION."""
+    pipeline = FeaturePipeline()
+    engine = RiskEngine()
+
+    for p in range(1, 25):
+        pkt = PacketMetadata(timestamp=100.0 + p*0.05, length=64, src_ip="172.16.0.44", dst_ip="192.168.1.10", src_port=55000, dst_port=80+p, protocol="TCP", tcp_flags=0x02)
+        flow = Flow(CanonicalFlowKey.from_packet(pkt), pkt)
+        feats = pipeline.extract_features(flow)
+        for det in engine.detectors:
+            res = det.analyze_flow(feats)
+            if res and res.detected:
+                assert res.threat_class != "UDP_AMPLIFICATION", f"Detector {det.name} falsely fired UDP_AMPLIFICATION on Port Scan!"
+
+def test_host_scan_does_not_trigger_udp_amplification():
+    """Horizontal host scan probe traffic must NEVER trigger UDP_AMPLIFICATION."""
+    pipeline = FeaturePipeline()
+    engine = RiskEngine()
+
+    for h in range(1, 25):
+        pkt = PacketMetadata(timestamp=100.0 + h*0.05, length=64, src_ip="172.16.0.45", dst_ip=f"192.168.1.{10+h}", src_port=55000, dst_port=445, protocol="TCP", tcp_flags=0x02)
+        flow = Flow(CanonicalFlowKey.from_packet(pkt), pkt)
+        feats = pipeline.extract_features(flow)
+        for det in engine.detectors:
+            res = det.analyze_flow(feats)
+            if res and res.detected:
+                assert res.threat_class != "UDP_AMPLIFICATION", f"Detector {det.name} falsely fired UDP_AMPLIFICATION on Host Scan!"
+
+def test_benign_dns_does_not_trigger_udp_amplification():
+    """Single benign DNS query must NOT trigger UDP_AMPLIFICATION."""
+    pipeline = FeaturePipeline()
+    engine = RiskEngine()
+
+    pkt = PacketMetadata(timestamp=100.0, length=110, src_ip="192.168.1.15", dst_ip="8.8.8.8", src_port=54000, dst_port=53, protocol="UDP", dns_query="google.com")
+    flow = Flow(CanonicalFlowKey.from_packet(pkt), pkt)
+    feats = pipeline.extract_features(flow)
+
+    for det in engine.detectors:
+        res = det.analyze_flow(feats)
+        if res and res.detected:
+            assert res.threat_class != "UDP_AMPLIFICATION", f"Detector {det.name} falsely fired UDP_AMPLIFICATION on benign DNS!"
+
+def test_normal_udp_does_not_trigger_udp_amplification():
+    """Normal multi-packet UDP flow with moderate rate & symmetric volume must NOT trigger UDP_AMPLIFICATION."""
+    pipeline = FeaturePipeline()
+    engine = RiskEngine()
+
+    pkt0 = PacketMetadata(timestamp=100.0, length=200, src_ip="10.0.0.5", dst_ip="1.1.1.1", src_port=6000, dst_port=6000, protocol="UDP")
+    flow = Flow(CanonicalFlowKey.from_packet(pkt0), pkt0)
+    for i in range(1, 10):
+        flow.add_packet(PacketMetadata(timestamp=100.0 + i*0.5, length=200, src_ip="10.0.0.5", dst_ip="1.1.1.1", src_port=6000, dst_port=6000, protocol="UDP"))
+
+    feats = pipeline.extract_features(flow)
+    for det in engine.detectors:
+        res = det.analyze_flow(feats)
+        if res and res.detected:
+            assert res.threat_class != "UDP_AMPLIFICATION", f"Detector {det.name} falsely fired UDP_AMPLIFICATION on normal UDP!"
+

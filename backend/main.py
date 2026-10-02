@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.database import init_db
 from backend.websocket import ws_manager
-from backend.api import alerts, flows, statistics, models
+from backend.api import alerts, flows, statistics, models, correlations
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("OracleShieldBackend")
@@ -36,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(alerts.router)
+app.include_router(correlations.router)
 app.include_router(flows.router)
 app.include_router(statistics.router)
 app.include_router(models.router)

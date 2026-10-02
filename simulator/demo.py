@@ -33,7 +33,7 @@ class LiveDemoRunner:
         start_time = time.time()
         pkt_clock = start_time
 
-        # Comprehensive SIH threat scenario sequence
+        # Comprehensive SIH threat scenario and multi-stage campaign sequence
         scenarios = [
             ("BENIGN", lambda t: self.generator.generate_benign_flow(t)),
             ("SYN_FLOOD", lambda t: self.generator.generate_syn_flood(t, duration_seconds=2.0, rate=50.0)),
@@ -44,7 +44,11 @@ class LiveDemoRunner:
             ("DGA_DOMAIN", lambda t: self.generator.generate_dga_traffic(t)),
             ("DNS_TUNNELING", lambda t: self.generator.generate_dns_tunneling(t)),
             ("EXFILTRATION", lambda t: self.generator.generate_exfiltration(t)),
-            ("SUSPICIOUS_ENCRYPTED_SESSION", lambda t: self.generator.generate_encrypted_session_anomaly(t))
+            ("SUSPICIOUS_ENCRYPTED_SESSION", lambda t: self.generator.generate_encrypted_session_anomaly(t)),
+            ("CAMPAIGN_RECON_TO_C2", lambda t: self.generator.generate_campaign_recon_to_c2(t)),
+            ("CAMPAIGN_HOST_RECON_TO_C2", lambda t: self.generator.generate_campaign_host_recon_to_c2(t)),
+            ("CAMPAIGN_DNS_TO_EXFIL", lambda t: self.generator.generate_campaign_dns_to_exfil(t)),
+            ("CAMPAIGN_RECON_TLS_EXFIL", lambda t: self.generator.generate_campaign_recon_tls_exfil(t))
         ]
 
         scenario_idx = 0

@@ -10,8 +10,12 @@ def extract_network_features(flow: Flow) -> Dict[str, Any]:
 
     sizes = np.array(flow.packet_sizes) if flow.packet_sizes else np.array([0])
 
-    pkts_per_sec = total_pkts / duration
-    bytes_per_sec = total_bytes / duration
+    if total_pkts <= 1:
+        pkts_per_sec = float(total_pkts)
+        bytes_per_sec = float(total_bytes)
+    else:
+        pkts_per_sec = total_pkts / duration
+        bytes_per_sec = total_bytes / duration
 
     mean_pkt_size = float(np.mean(sizes))
     std_pkt_size = float(np.std(sizes))

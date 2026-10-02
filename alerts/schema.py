@@ -19,3 +19,6 @@ class Alert(BaseModel):
     contributing_features: Dict[str, float] = Field(default_factory=dict)
     model_version: str = "v1.0"
     correlated_alerts_count: int = 0
+    detector_attribution: Dict[str, Any] = Field(default_factory=dict)
+    evidence_chain: Dict[str, Any] = Field(default_factory=dict)
+    correlation: Optional[Dict[str, Any]] = None

@@ -3,16 +3,20 @@ import { Header } from './components/Header';
 import { KPICards } from './components/KPICards';
 import { ThreatCharts } from './components/ThreatCharts';
 import { AlertFeed } from './components/AlertFeed';
+import { CorrelationIncidentsView } from './components/CorrelationIncidentsView';
 import { ThreatInvestigationDrawer } from './components/ThreatInvestigationDrawer';
-import { Alert, Statistics } from './types';
+import { HostRiskDossierModal } from './components/HostRiskDossierModal';
+import { Alert, Statistics, CorrelatedIncident } from './types';
 
 export const App: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [stats, setStats] = useState<Statistics | null>(null);
+  const [incidents, setIncidents] = useState<CorrelatedIncident[]>([]);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [selectedHostIp, setSelectedHostIp] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
-  // Poll REST statistics & initial alerts
+  // Poll REST statistics, alerts & correlation incidents
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -26,6 +30,12 @@ export const App: React.FC = () => {
         if (alertsRes.ok) {
           const alertsData = await alertsRes.json();
           setAlerts(alertsData);
+        }
+
+        const corrRes = await fetch('/api/correlations?limit=20');
+        if (corrRes.ok) {
+          const corrData = await corrRes.json();
+          setIncidents(corrData);
         }
       } catch (err) {
         console.error("Error fetching telemetry:", err);
@@ -94,15 +104,28 @@ export const App: React.FC = () => {
         {/* KPI Performance & Threat Summary Cards */}
         <KPICards stats={stats} />
 
+        {/* Multi-Event Correlation & Attack Campaign Visualizer */}
+        <CorrelationIncidentsView
+          incidents={incidents}
+          onSelectHost={(ip) => setSelectedHostIp(ip)}
+        />
+
         {/* Real-time Threat Activity Charts */}
         <ThreatCharts alerts={alerts} stats={stats} />
 
-        {/* Live Alert Feed Stream */}
-        <AlertFeed alerts={alerts} onSelectAlert={(alert) => setSelectedAlert(alert)} />
+        {/* Live Alert Feed Stream & Timeline */}
+        <AlertFeed
+          alerts={alerts}
+          onSelectAlert={(alert) => setSelectedAlert(alert)}
+          onSelectHost={(ip) => setSelectedHostIp(ip)}
+        />
       </main>
 
       {/* Threat Investigation Drawer Modal */}
       <ThreatInvestigationDrawer alert={selectedAlert} onClose={() => setSelectedAlert(null)} />
+
+      {/* Host Risk Dossier Modal */}
+      <HostRiskDossierModal hostIp={selectedHostIp} onClose={() => setSelectedHostIp(null)} />
     </div>
   );
 };

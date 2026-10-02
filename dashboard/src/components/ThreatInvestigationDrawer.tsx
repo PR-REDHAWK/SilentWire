@@ -84,10 +84,58 @@ export const ThreatInvestigationDrawer: React.FC<ThreatInvestigationDrawerProps>
             </div>
           </div>
 
+          {/* Detector Attribution Breakdown */}
+          {alert.detector_attribution && Object.keys(alert.detector_attribution).length > 0 && (
+            <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
+                <Cpu className="w-4 h-4 text-cyan-400" /> Ensemble Detector Attribution
+              </h3>
+              <div className="space-y-2 font-mono text-xs">
+                {Object.entries(alert.detector_attribution).map(([det, val]) => (
+                  <div key={det} className="p-2.5 bg-gray-900 rounded border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400 capitalize">{det.replace(/_/g, ' ')}:</span>
+                    <span className="text-cyan-400 font-semibold">{String(val)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Multi-Event Correlation Context */}
+          {alert.correlation && (
+            <div className="bg-purple-950/20 border border-purple-500/30 rounded-xl p-4 font-mono text-xs">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-1.5">
+                <Layers className="w-4 h-4" /> Multi-Event Correlation Context
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                <div className="p-2 bg-gray-900 rounded border border-gray-800">
+                  <span className="text-gray-500 text-[10px] block">CORRELATED INCIDENT</span>
+                  <span className="text-white font-bold">{alert.correlation.incident_id}</span>
+                </div>
+                <div className="p-2 bg-gray-900 rounded border border-gray-800">
+                  <span className="text-gray-500 text-[10px] block">CORRELATION LABEL</span>
+                  <span className="text-purple-400 font-bold">{alert.correlation.correlation_label}</span>
+                </div>
+              </div>
+              {alert.correlation.related_threats && alert.correlation.related_threats.length > 0 && (
+                <div>
+                  <span className="text-gray-500 text-[10px] block mb-1">CORRELATED THREAT SEQUENCE:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {alert.correlation.related_threats.map((th) => (
+                      <span key={th} className="px-2 py-0.5 bg-gray-900 border border-gray-800 text-gray-200 rounded text-[11px]">
+                        {th}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Supporting Evidence Breakdown */}
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-              <Terminal className="w-4 h-4 text-emerald-400" /> Supporting Empirical Evidence
+              <Terminal className="w-4 h-4 text-emerald-400" /> Empirical Feature Evidence
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-xs">
               {Object.entries(alert.evidence).map(([key, val]) => (
@@ -103,7 +151,7 @@ export const ThreatInvestigationDrawer: React.FC<ThreatInvestigationDrawerProps>
           {alert.contributing_features && Object.keys(alert.contributing_features).length > 0 && (
             <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-                <Cpu className="w-4 h-4 text-purple-400" /> Top Contributing Features (Model Importance)
+                <Cpu className="w-4 h-4 text-purple-400" /> Model Feature Importance
               </h3>
               <div className="space-y-2 font-mono text-xs">
                 {Object.entries(alert.contributing_features).map(([feat, importance]) => (
@@ -129,7 +177,7 @@ export const ThreatInvestigationDrawer: React.FC<ThreatInvestigationDrawerProps>
             <CheckCircle2 className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-semibold block">Passive Enclave Intelligence</span>
-              This detection was derived using 100% passive flow metadata observations. Zero return packets were transmitted back to the monitored network segment.
+              Suspicious encrypted-session detection using observable TLS/QUIC metadata and flow behavior without decrypting application payloads. Zero return packets transmitted to monitored network.
             </div>
           </div>
         </div>

@@ -70,6 +70,23 @@ class MLDetector(BaseDetector):
         if pred_class_name == "BENIGN" or confidence < 0.65:
             return None  # Normal flow or low confidence prediction
 
+        # Protocol & domain semantic validation to prevent physically impossible cross-triggers
+        protocol = str(flow_features.get("protocol", "IP")).upper()
+        total_pkts = flow_features.get("total_packets", 0)
+        dns_count = flow_features.get("dns_query_count", 0)
+
+        # 1. UDP Amplification must be UDP protocol and multi-packet
+        if pred_class_name == "UDP_AMPLIFICATION" and (protocol != "UDP" or total_pkts < 5):
+            return None
+
+        # 2. SYN Flood must be TCP protocol
+        if pred_class_name == "SYN_FLOOD" and protocol != "TCP":
+            return None
+
+        # 3. DNS-specific threats must contain DNS queries
+        if pred_class_name in ["DGA_DOMAIN", "DNS_TUNNELING"] and dns_count == 0:
+            return None
+
         severity = SEVERITY_MAP.get(pred_class_name, "HIGH")
 
         # Feature importances from model if available

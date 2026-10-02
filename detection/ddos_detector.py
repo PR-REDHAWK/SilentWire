@@ -20,7 +20,7 @@ class DDoSDetector(BaseDetector):
         syn_ack_ratio = flow_features.get("syn_ack_ratio", 1.0)
         pkts_per_sec = flow_features.get("packets_per_sec", 0.0)
         total_pkts = flow_features.get("total_packets", 0)
-        protocol = flow_features.get("protocol", "IP")
+        protocol = str(flow_features.get("protocol", "IP")).upper()
 
         syn_rate = fwd_syn / max(duration, 0.1)
 

@@ -15,6 +15,11 @@ class ScanningDetector(BaseDetector):
         self.src_dst_ports: Dict[str, set] = {}
         self.src_dst_hosts: Dict[str, set] = {}
 
+    def reset(self):
+        """Clears scanning history tracking."""
+        self.src_dst_ports.clear()
+        self.src_dst_hosts.clear()
+
     def analyze_flow(self, flow_features: Dict[str, Any]) -> Optional[DetectionResult]:
         src_ip = flow_features.get("initiator_ip")
         dst_ip = flow_features.get("responder_ip")
@@ -33,8 +38,8 @@ class ScanningDetector(BaseDetector):
         unique_ports = len(self.src_dst_ports[src_ip])
         unique_hosts = len(self.src_dst_hosts[src_ip])
 
-        # Vertical Port Scan
-        if unique_ports >= self.port_thresh:
+        # Vertical Port Scan (single src targeting many ports on few hosts)
+        if unique_ports >= self.port_thresh and unique_hosts < self.host_thresh:
             confidence = min(0.97, 0.70 + (unique_ports / (self.port_thresh * 3.0)) * 0.27)
             return DetectionResult(
                 threat_class="PORT_SCAN",
