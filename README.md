@@ -65,47 +65,47 @@ OracleShield strictly adheres to all architectural constraints defined for unidi
 
 ```mermaid
 flowchart TD
-    subgraph Monitored Network
-        PROD[Production Core Traffic]
+    subgraph PROD_NET ["Monitored Production Network"]
+        PROD["Production Core Traffic"]
     end
 
-    DIODE[Hardware Data Diode / Optical TAP]
+    DIODE["Hardware Data Diode / Optical TAP"]
     PROD -->|One-Way Optical Link| DIODE
 
-    subgraph Monitoring Enclave (OracleShield)
+    subgraph ENCLAVE ["Monitoring Enclave - OracleShield"]
         direction TB
-        ING[Passive Ingestion Engine: PCAP / Stream / Raw Socket]
-        FLOW[Canonical Bidirectional Flow Tracker & Sliding Window]
+        ING["Passive Ingestion Engine: PCAP / Stream / Raw Socket"]
+        FLOW["Canonical Bidirectional Flow Tracker & Sliding Window"]
         
-        subgraph Feature Extraction Pipeline
-            NET_FEAT[Network & Entropy Features]
-            TLS_FEAT[Passive TLS JA3/JA4 Extractor]
-            DNS_FEAT[DNS & Subdomain Entropy Extractor]
-            BASE_FEAT[Host Baseline Profiler (EMA Z-Scores)]
+        subgraph FEAT_PIPE ["Feature Extraction Pipeline"]
+            NET_FEAT["Network & Entropy Features"]
+            TLS_FEAT["Passive TLS JA3/JA4 Extractor"]
+            DNS_FEAT["DNS & Subdomain Entropy Extractor"]
+            BASE_FEAT["Host Baseline Profiler (EMA Z-Scores)"]
         end
 
-        subgraph Ensemble Threat Detection Matrix
-            DET_DDOS[DDoS & Flood Detector]
-            DET_SCAN[Port & Host Scan Detector]
-            DET_BEACON[C2 Beaconing Detector (FFT / IAT)]
-            DET_DGA[DGA Domain Classifier]
-            DET_DNSTUN[DNS Tunneling Detector]
-            DET_EXFIL[Data Exfiltration Detector]
-            DET_ML[Trained Encrypted ML Classifier]
-            DET_ANOM[Isolation Forest Anomaly Detector]
+        subgraph DET_MATRIX ["Ensemble Threat Detection Matrix"]
+            DET_DDOS["DDoS & Flood Detector"]
+            DET_SCAN["Port & Host Scan Detector"]
+            DET_BEACON["C2 Beaconing Detector (FFT / IAT)"]
+            DET_DGA["DGA Domain Classifier"]
+            DET_DNSTUN["DNS Tunneling Detector"]
+            DET_EXFIL["Data Exfiltration Detector"]
+            DET_ML["Trained Encrypted ML Classifier"]
+            DET_ANOM["Isolation Forest Anomaly Detector"]
         end
 
-        CORR[Multi-Event Correlation Engine (300s Sliding Window)]
-        RISK[Host Risk Dossier & Scoring Engine]
-        DB[(Async SQLite / Postgres Event Store)]
-        WS[WebSocket Push Engine]
-        DASH[SOC Threat Intelligence Dashboard]
+        CORR["Multi-Event Correlation Engine (300s Window)"]
+        RISK["Host Risk Dossier & Scoring Engine"]
+        DB[("Async SQLite / Postgres Event Store")]
+        WS["WebSocket Push Engine"]
+        DASH["SOC Threat Intelligence Dashboard"]
 
         DIODE -->|Read-Only Ingest| ING
         ING --> FLOW
-        FLOW --> NET_FEAT & TLS_FEAT & DNS_FEAT & BASE_FEAT
-        NET_FEAT & TLS_FEAT & DNS_FEAT & BASE_FEAT --> DET_DDOS & DET_SCAN & DET_BEACON & DET_DGA & DET_DNSTUN & DET_EXFIL & DET_ML & DET_ANOM
-        DET_DDOS & DET_SCAN & DET_BEACON & DET_DGA & DET_DNSTUN & DET_EXFIL & DET_ML & DET_ANOM --> CORR
+        FLOW --> FEAT_PIPE
+        FEAT_PIPE --> DET_MATRIX
+        DET_MATRIX --> CORR
         CORR --> RISK
         RISK --> DB
         RISK --> WS
